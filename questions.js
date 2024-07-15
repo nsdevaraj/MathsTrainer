@@ -62,7 +62,7 @@ function showNextQuestion() {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Example usage:
-    let numbers = [10, 5, 15, 3];
+    let numbers = [12, 14, 15, 13, 11, 16, 19, 18, 17];
     questions = mathTeacherAdditionQuestions(numbers);
 
     let previousButton = document.getElementById('previous');
