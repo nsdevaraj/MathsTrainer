@@ -46,6 +46,7 @@
 
         // Event listener for when speech is recognized
         recognition.onresult = (event) => {
+          resultElement.textContent = ''
           // The event.results property returns a SpeechRecognitionResultList object
           const transcript =
             event.results[event.results.length - 1][0].transcript;
