@@ -81,16 +81,15 @@ let recognizing = false;
 
 //const recog = new webkitSpeechRecognition();
 
-const recog = window.SpeechRecognition
+const recog = new webkitSpeechRecognition(); 
+if (recog == null) { 
+recog = window.SpeechRecognition
 || window.webkitSpeechRecognition
 || window.mozSpeechRecognition
 || window.msSpeechRecognition
 || window.oSpeechRecognition
-
-if (recog == null) { 
-  recog = new webkitSpeechRecognition();
-  console.warn('The current browser does not support the SpeechRecognition API.')
 }
+  
 
 recog.continuous = true;
 recog.interimResults = true;
