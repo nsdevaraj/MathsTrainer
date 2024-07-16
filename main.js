@@ -19,13 +19,14 @@ let recognizing = false;
 
 //const recog = new webkitSpeechRecognition();
 
-const recog = new webkitSpeechRecognition(); 
-if (recog == null) { 
-recog = window.SpeechRecognition
+const recog = window.SpeechRecognition
 || window.webkitSpeechRecognition
 || window.mozSpeechRecognition
 || window.msSpeechRecognition
 || window.oSpeechRecognition
+recog = new recog(); 
+if (!recog) { 
+  alert("Your browser does not support speech recognition. Please try with Chrome or Edge.");
 }
   
 
