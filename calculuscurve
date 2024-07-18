@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Calculus Curve Adjuster</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+        }
+        .explanation {
+            margin-top: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Calculus Curve Adjuster</h1>
+        <div class="controls">
+            <button id="addPointBtn">Add Control Point</button>
+            <button id="removePointBtn">Remove Last Point</button>
+            <button id="resetBtn">Reset</button>
+            <button id="toggleDerivativeBtn">Toggle Derivative</button>
+            <button id="toggleIntegralBtn">Toggle Integral</button>
+        </div>
+        <div id="canvas-container"></div>
+        <div class="explanation" id="explanation">
+            Drag the control points to adjust the curve. Use the buttons to add or remove control points, 
+            and toggle the display of the derivative and integral.
+        </div>
+    </div>
+    <script>
+        let points = [];
+        let draggingPoint = null;
+        let showDerivative = false;
+        let showIntegral = false;
+
+        function setup() {
+            const canvas = createCanvas(600, 400);
+            canvas.parent('canvas-container');
+            
+            // Initialize with some points
+            points = [
+                createVector(100, 200),
+                createVector(300, 100),
+                createVector(500, 300)
+            ];
+
+            setupButtons();
+        }
+
+        function draw() {
+            background(240);
+            drawAxes();
+
+            // Draw the curve
+            noFill();
+            stroke(0, 0, 255);
+            strokeWeight(2);
+            beginShape();
+            for (let t = 0; t <= 1; t += 0.01) {
+                let pt = getPoint(t);
+                vertex(pt.x, pt.y);
+            }
+            endShape();
+
+            // Draw control points
+            for (let i = 0; i < points.length; i++) {
+                fill(255, 0, 0);
+                noStroke();
+                ellipse(points[i].x, points[i].y, 10, 10);
+            }
+
+            if (showDerivative) {
+                drawDerivative();
+            }
+
+            if (showIntegral) {
+                drawIntegral();
+            }
+        }
+
+        function drawAxes() {
+            stroke(0);
+            line(0, height/2, width, height/2); // x-axis
+            line(width/2, 0, width/2, height); // y-axis
+
+            // Add labels
+            fill(0);
+            textAlign(CENTER, CENTER);
+            text('x', width - 10, height/2 + 20);
+            text('y', width/2 - 20, 10);
+        }
+
+        function getPoint(t) {
+            if (points.length === 0) return createVector(0, 0);
+            if (points.length === 1) return points[0];
+
+            let newPoints = points.slice();
+            while (newPoints.length > 1) {
+                let tempPoints = [];
+                for (let i = 0; i < newPoints.length - 1; i++) {
+                    let p1 = newPoints[i];
+                    let p2 = newPoints[i + 1];
+                    let x = lerp(p1.x, p2.x, t);
+                    let y = lerp(p1.y, p2.y, t);
+                    tempPoints.push(createVector(x, y));
+                }
+                newPoints = tempPoints;
+            }
+            return newPoints[0];
+        }
+
+        function drawDerivative() {
+            stroke(255, 0, 0);
+            strokeWeight(1);
+            noFill();
+            beginShape();
+            for (let t = 0; t <= 1; t += 0.01) {
+                let pt = getDerivative(t);
+                vertex(pt.x, pt.y);
+            }
+            endShape();
+        }
+
+        function getDerivative(t) {
+            const h = 0.0001;
+            let p1 = getPoint(t);
+            let p2 = getPoint(t + h);
+            let slope = (p2.y - p1.y) / (p2.x - p1.x);
+            return createVector(p1.x, height/2 - slope * 50);
+        }
+
+        function drawIntegral() {
+            fill(0, 255, 0, 50);
+            noStroke();
+            beginShape();
+            vertex(0, height/2);
+            for (let t = 0; t <= 1; t += 0.01) {
+                let pt = getPoint(t);
+                vertex(pt.x, pt.y);
+            }
+            vertex(width, height/2);
+            endShape(CLOSE);
+        }
+
+        function mousePressed() {
+            for (let i = 0; i < points.length; i++) {
+                if (dist(mouseX, mouseY, points[i].x, points[i].y) < 10) {
+                    draggingPoint = i;
+                    break;
+                }
+            }
+        }
+
+        function mouseDragged() {
+            if (draggingPoint !== null) {
+                points[draggingPoint].x = mouseX;
+                points[draggingPoint].y = mouseY;
+            }
+        }
+
+        function mouseReleased() {
+            draggingPoint = null;
+        }
+
+        function setupButtons() {
+            document.getElementById('addPointBtn').addEventListener('click', () => {
+                if (points.length < 10) {
+                    points.push(createVector(random(width), random(height)));
+                }
+            });
+
+            document.getElementById('removePointBtn').addEventListener('click', () => {
+                if (points.length > 2) {
+                    points.pop();
+                }
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                points = [
+                    createVector(100, 200),
+                    createVector(300, 100),
+                    createVector(500, 300)
+                ];
+            });
+
+            document.getElementById('toggleDerivativeBtn').addEventListener('click', () => {
+                showDerivative = !showDerivative;
+                updateExplanation();
+            });
+
+            document.getElementById('toggleIntegralBtn').addEventListener('click', () => {
+                showIntegral = !showIntegral;
+                updateExplanation();
+            });
+        }
+
+        function updateExplanation() {
+            let explanation = 'Drag the control points to adjust the curve. ';
+            if (showDerivative) {
+                explanation += 'The red curve represents the derivative, showing the rate of change of the blue curve. ';
+            }
+            if (showIntegral) {
+                explanation += 'The green shaded area represents the integral, showing the accumulated area under the blue curve. ';
+            }
+            document.getElementById('explanation').innerHTML = explanation;
+        }
+    </script>
+</body>
+</html>

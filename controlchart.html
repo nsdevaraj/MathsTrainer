@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Data Control Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button, select {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        #chart-container {
+            width: 100%;
+            height: 400px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        .explanation {
+            margin-top: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Production Data Control Chart</h1>
+        <div class="controls">
+            <button id="generateDataBtn">Generate New Data</button>
+            <select id="chartTypeSelect">
+                <option value="individual">Individual Chart</option>
+                <option value="movingRange">Moving Range Chart</option>
+            </select>
+        </div>
+        <div id="chart-container">
+            <canvas id="controlChart"></canvas>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Sample</th>
+                    <th>Measurement</th>
+                    <th>Moving Range</th>
+                </tr>
+            </thead>
+            <tbody id="dataTableBody"></tbody>
+        </table>
+        <div class="explanation" id="explanation"></div>
+    </div>
+    <script>
+        let productionData = [];
+        let chart;
+
+        function generateData() {
+            const sampleSize = 25;
+            const mean = 100;
+            const stdDev = 5;
+
+            productionData = [];
+            for (let i = 0; i < sampleSize; i++) {
+                // Generate a random value using Box-Muller transform
+                let u = 0, v = 0;
+                while (u === 0) u = Math.random();
+                while (v === 0) v = Math.random();
+                let value = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                
+                // Scale and shift the value
+                value = value * stdDev + mean;
+                
+                productionData.push(parseFloat(value.toFixed(2)));
+            }
+
+            updateDataTable();
+            updateChart();
+        }
+
+        function updateDataTable() {
+            const tableBody = document.getElementById('dataTableBody');
+            tableBody.innerHTML = '';
+
+            for (let i = 0; i < productionData.length; i++) {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = i + 1;
+                row.insertCell(1).textContent = productionData[i];
+                if (i > 0) {
+                    const movingRange = Math.abs(productionData[i] - productionData[i-1]).toFixed(2);
+                    row.insertCell(2).textContent = movingRange;
+                } else {
+                    row.insertCell(2).textContent = '-';
+                }
+            }
+        }
+
+        function calculateControlLimits() {
+            const mean = productionData.reduce((sum, value) => sum + value, 0) / productionData.length;
+            const movingRanges = productionData.slice(1).map((value, index) => 
+                Math.abs(value - productionData[index])
+            );
+            const averageMovingRange = movingRanges.reduce((sum, value) => sum + value, 0) / movingRanges.length;
+
+            const ucl = mean + 2.66 * averageMovingRange;
+            const lcl = mean - 2.66 * averageMovingRange;
+
+            return { mean, ucl, lcl, averageMovingRange };
+        }
+
+        function updateChart() {
+            const chartType = document.getElementById('chartTypeSelect').value;
+            const ctx = document.getElementById('controlChart').getContext('2d');
+            const { mean, ucl, lcl, averageMovingRange } = calculateControlLimits();
+
+            let chartData, chartOptions;
+
+            if (chartType === 'individual') {
+                chartData = {
+                    labels: productionData.map((_, index) => index + 1),
+                    datasets: [
+                        {
+                            label: 'Measurement',
+                            data: productionData,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'UCL',
+                            data: Array(productionData.length).fill(ucl),
+                            borderColor: 'red',
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'Mean',
+                            data: Array(productionData.length).fill(mean),
+                            borderColor: 'green',
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'LCL',
+                            data: Array(productionData.length).fill(lcl),
+                            borderColor: 'red',
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ]
+                };
+
+                chartOptions = {
+                    responsive: true,
+                    title: {
+                        display: true,
+                        text: 'Individual Control Chart'
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Measurement'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Sample Number'
+                            }
+                        }
+                    }
+                };
+            } else {
+                const movingRanges = productionData.slice(1).map((value, index) => 
+                    Math.abs(value - productionData[index])
+                );
+                const mrUcl = averageMovingRange * 3.267;
+                const mrLcl = 0;
+
+                chartData = {
+                    labels: movingRanges.map((_, index) => index + 2),
+                    datasets: [
+                        {
+                            label: 'Moving Range',
+                            data: movingRanges,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'UCL',
+                            data: Array(movingRanges.length).fill(mrUcl),
+                            borderColor: 'red',
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'Average',
+                            data: Array(movingRanges.length).fill(averageMovingRange),
+                            borderColor: 'green',
+                            borderDash: [5, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'LCL',
+                            data: Array(movingRanges.length).fill(mrLcl),
+                            borderColor: 'red',
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ]
+                };
+
+                chartOptions = {
+                    responsive: true,
+                    title: {
+                        display: true,
+                        text: 'Moving Range Control Chart'
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Moving Range'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Sample Number'
+                            }
+                        }
+                    }
+                };
+            }
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: chartOptions
+            });
+
+            updateExplanation(chartType, mean, ucl, lcl, averageMovingRange);
+        }
+
+        function updateExplanation(chartType, mean, ucl, lcl, averageMovingRange) {
+            let explanation = '';
+            if (chartType === 'individual') {
+                explanation = `
+                    The Individual Control Chart shows individual measurements over time. 
+                    The center green line represents the mean (${mean.toFixed(2)}). 
+                    The upper and lower red dashed lines are the Upper Control Limit (UCL: ${ucl.toFixed(2)}) 
+                    and Lower Control Limit (LCL: ${lcl.toFixed(2)}), calculated as ±2.66 * average moving range from the mean. 
+                    Points outside these limits may indicate special cause variation.
+                `;
+            } else {
+                explanation = `
+                    The Moving Range Chart shows the absolute difference between consecutive measurements. 
+                    The center green line is the average moving range (${averageMovingRange.toFixed(2)}). 
+                    The upper red dashed line is the UCL (${(averageMovingRange * 3.267).toFixed(2)}), calculated as 3.267 * average moving range. 
+                    The LCL is always 0 for moving range charts. 
+                    This chart helps detect changes in process variability.
+                `;
+            }
+            document.getElementById('explanation').innerHTML = explanation;
+        }
+
+        document.getElementById('generateDataBtn').addEventListener('click', generateData);
+        document.getElementById('chartTypeSelect').addEventListener('change', updateChart);
+
+        // Initial data generation and chart display
+        generateData();
+    </script>
+</body>
+</html>

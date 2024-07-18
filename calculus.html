@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Calculus Learning App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        select, input {
+            font-size: 16px;
+            padding: 5px;
+        }
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+        }
+        .explanation {
+            margin-top: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Calculus Learning App</h1>
+        <div class="controls">
+            <label for="conceptSelect">Select Concept:</label>
+            <select id="conceptSelect">
+                <option value="derivative">Derivative</option>
+                <option value="integral">Integral</option>
+            </select>
+            <label for="functionInput">Enter a function f(x):</label>
+            <input type="text" id="functionInput" value="x^2" placeholder="e.g., x^2, sin(x), e^x">
+        </div>
+        <div id="canvas-container"></div>
+        <div class="explanation" id="explanation"></div>
+    </div>
+    <script>
+        let concept = 'derivative';
+        let functionString = 'x^2';
+        let xMin = -5;
+        let xMax = 5;
+        let yMin = -10;
+        let yMax = 10;
+
+        function setup() {
+            const canvas = createCanvas(600, 400);
+            canvas.parent('canvas-container');
+
+            const conceptSelect = document.getElementById('conceptSelect');
+            const functionInput = document.getElementById('functionInput');
+
+            conceptSelect.addEventListener('change', () => {
+                concept = conceptSelect.value;
+                updateVisualization();
+            });
+
+            functionInput.addEventListener('input', () => {
+                functionString = functionInput.value;
+                updateVisualization();
+            });
+
+            updateVisualization();
+        }
+
+        function draw() {
+            background(240);
+            drawAxes();
+
+            if (concept === 'derivative') {
+                drawFunction(functionString, 'blue');
+                drawDerivative(functionString, 'red');
+            } else if (concept === 'integral') {
+                drawFunction(functionString, 'blue');
+                drawIntegral(functionString, 'green');
+            }
+        }
+
+        function drawAxes() {
+            stroke(0);
+            line(0, height/2, width, height/2); // x-axis
+            line(width/2, 0, width/2, height); // y-axis
+
+            // Add labels
+            fill(0);
+            textAlign(CENTER, CENTER);
+            text('x', width - 10, height/2 + 20);
+            text('y', width/2 - 20, 10);
+        }
+
+        function drawFunction(func, color) {
+            noFill();
+            stroke(color);
+            beginShape();
+            for (let x = xMin; x <= xMax; x += 0.1) {
+                let y = evaluateFunction(func, x);
+                let screenX = map(x, xMin, xMax, 0, width);
+                let screenY = map(y, yMin, yMax, height, 0);
+                vertex(screenX, screenY);
+            }
+            endShape();
+        }
+
+        function drawDerivative(func, color) {
+            noFill();
+            stroke(color);
+            beginShape();
+            for (let x = xMin; x <= xMax; x += 0.1) {
+                let y = evaluateDerivative(func, x);
+                let screenX = map(x, xMin, xMax, 0, width);
+                let screenY = map(y, yMin, yMax, height, 0);
+                vertex(screenX, screenY);
+            }
+            endShape();
+        }
+
+        function drawIntegral(func, color) {
+            fill(color + '40');
+            noStroke();
+            beginShape();
+            let x0 = map(xMin, xMin, xMax, 0, width);
+            vertex(x0, height/2);
+            for (let x = xMin; x <= xMax; x += 0.1) {
+                let y = evaluateFunction(func, x);
+                let screenX = map(x, xMin, xMax, 0, width);
+                let screenY = map(y, yMin, yMax, height, 0);
+                vertex(screenX, screenY);
+            }
+            let x1 = map(xMax, xMin, xMax, 0, width);
+            vertex(x1, height/2);
+            endShape(CLOSE);
+        }
+
+        function evaluateFunction(func, x) {
+            try {
+                return math.evaluate(func, { x: x });
+            } catch (error) {
+                console.error('Error evaluating function:', error);
+                return 0;
+            }
+        }
+
+        function evaluateDerivative(func, x) {
+            const h = 0.0001;
+            return (evaluateFunction(func, x + h) - evaluateFunction(func, x)) / h;
+        }
+
+        function updateVisualization() {
+            let explanation = '';
+            if (concept === 'derivative') {
+                explanation = `The blue curve represents the original function f(x) = ${functionString}. 
+                The red curve shows its derivative f'(x), which represents the slope of the tangent line 
+                to the original function at each point. Notice how the derivative is positive where the 
+                original function is increasing, negative where it's decreasing, and zero at the function's 
+                local maxima and minima.`;
+            } else if (concept === 'integral') {
+                explanation = `The blue curve represents the original function f(x) = ${functionString}. 
+                The green shaded area represents the indefinite integral of f(x), which is the area under 
+                the curve from the y-axis to each point on the x-axis. The integral can be thought of as 
+                the inverse operation of differentiation. It gives us the accumulated value of the function 
+                over an interval.`;
+            }
+            document.getElementById('explanation').innerHTML = explanation;
+        }
+    </script>
+</body>
+</html>
