@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Production Data Control Chart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button, select {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        #chart-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+        canvas {
+            border: 1px solid #ddd;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        .explanation {
+            margin-top: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Custom Production Data Control Chart</h1>
+        <div class="controls">
+            <button id="generateDataBtn">Generate New Data</button>
+            <select id="chartTypeSelect">
+                <option value="individual">Individual Chart</option>
+                <option value="movingRange">Moving Range Chart</option>
+            </select>
+        </div>
+        <div id="chart-container">
+            <canvas id="controlChart" width="800" height="400"></canvas>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Sample</th>
+                    <th>Measurement</th>
+                    <th>Moving Range</th>
+                </tr>
+            </thead>
+            <tbody id="dataTableBody"></tbody>
+        </table>
+        <div class="explanation" id="explanation"></div>
+    </div>
+    <script>
+        let productionData = [];
+        let canvas, ctx;
+
+        function generateData() {
+            const sampleSize = 25;
+            const mean = 100;
+            const stdDev = 5;
+
+            productionData = [];
+            for (let i = 0; i < sampleSize; i++) {
+                // Generate a random value using Box-Muller transform
+                let u = 0, v = 0;
+                while (u === 0) u = Math.random();
+                while (v === 0) v = Math.random();
+                let value = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                
+                // Scale and shift the value
+                value = value * stdDev + mean;
+                
+                productionData.push(parseFloat(value.toFixed(2)));
+            }
+
+            updateDataTable();
+            updateChart();
+        }
+
+        function updateDataTable() {
+            const tableBody = document.getElementById('dataTableBody');
+            tableBody.innerHTML = '';
+
+            for (let i = 0; i < productionData.length; i++) {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = i + 1;
+                row.insertCell(1).textContent = productionData[i];
+                if (i > 0) {
+                    const movingRange = Math.abs(productionData[i] - productionData[i-1]).toFixed(2);
+                    row.insertCell(2).textContent = movingRange;
+                } else {
+                    row.insertCell(2).textContent = '-';
+                }
+            }
+        }
+
+        function calculateControlLimits() {
+            const mean = productionData.reduce((sum, value) => sum + value, 0) / productionData.length;
+            const movingRanges = productionData.slice(1).map((value, index) => 
+                Math.abs(value - productionData[index])
+            );
+            const averageMovingRange = movingRanges.reduce((sum, value) => sum + value, 0) / movingRanges.length;
+
+            const ucl = mean + 2.66 * averageMovingRange;
+            const lcl = mean - 2.66 * averageMovingRange;
+
+            return { mean, ucl, lcl, averageMovingRange };
+        }
+
+        function updateChart() {
+            const chartType = document.getElementById('chartTypeSelect').value;
+            canvas = document.getElementById('controlChart');
+            ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const { mean, ucl, lcl, averageMovingRange } = calculateControlLimits();
+
+            if (chartType === 'individual') {
+                drawIndividualChart(mean, ucl, lcl);
+            } else {
+                drawMovingRangeChart(averageMovingRange);
+            }
+
+            updateExplanation(chartType, mean, ucl, lcl, averageMovingRange);
+        }
+
+        function drawIndividualChart(mean, ucl, lcl) {
+            const padding = 40;
+            const chartWidth = canvas.width - 2 * padding;
+            const chartHeight = canvas.height - 2 * padding;
+
+            // Find min and max values for y-axis
+            const minY = Math.min(...productionData, lcl) - 5;
+            const maxY = Math.max(...productionData, ucl) + 5;
+
+            // Draw axes
+            drawAxes(padding, chartWidth, chartHeight, minY, maxY);
+
+            // Draw data points and lines
+            ctx.beginPath();
+            ctx.strokeStyle = 'blue';
+            for (let i = 0; i < productionData.length; i++) {
+                const x = padding + (i / (productionData.length - 1)) * chartWidth;
+                const y = canvas.height - (padding + ((productionData[i] - minY) / (maxY - minY)) * chartHeight);
+                
+                ctx.lineTo(x, y);
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            }
+            ctx.stroke();
+
+            // Draw control limits and mean line
+            drawHorizontalLine(mean, minY, maxY, padding, chartWidth, chartHeight, 'green', 'Mean');
+            drawHorizontalLine(ucl, minY, maxY, padding, chartWidth, chartHeight, 'red', 'UCL');
+            drawHorizontalLine(lcl, minY, maxY, padding, chartWidth, chartHeight, 'red', 'LCL');
+        }
+
+        function drawMovingRangeChart(averageMovingRange) {
+            const padding = 40;
+            const chartWidth = canvas.width - 2 * padding;
+            const chartHeight = canvas.height - 2 * padding;
+
+            const movingRanges = productionData.slice(1).map((value, index) => 
+                Math.abs(value - productionData[index])
+            );
+
+            const mrUcl = averageMovingRange * 3.267;
+            const mrLcl = 0;
+
+            // Find min and max values for y-axis
+            const minY = 0;
+            const maxY = Math.max(...movingRanges, mrUcl) + 2;
+
+            // Draw axes
+            drawAxes(padding, chartWidth, chartHeight, minY, maxY);
+
+            // Draw data points and lines
+            ctx.beginPath();
+            ctx.strokeStyle = 'blue';
+            for (let i = 0; i < movingRanges.length; i++) {
+                const x = padding + (i / (movingRanges.length - 1)) * chartWidth;
+                const y = canvas.height - (padding + ((movingRanges[i] - minY) / (maxY - minY)) * chartHeight);
+                
+                ctx.lineTo(x, y);
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            }
+            ctx.stroke();
+
+            // Draw control limits and mean line
+            drawHorizontalLine(averageMovingRange, minY, maxY, padding, chartWidth, chartHeight, 'green', 'Average MR');
+            drawHorizontalLine(mrUcl, minY, maxY, padding, chartWidth, chartHeight, 'red', 'UCL');
+            drawHorizontalLine(mrLcl, minY, maxY, padding, chartWidth, chartHeight, 'red', 'LCL');
+        }
+
+        function drawAxes(padding, chartWidth, chartHeight, minY, maxY) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'black';
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+
+            // Draw y-axis labels
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 5; i++) {
+                const value = minY + (i / 5) * (maxY - minY);
+                const y = canvas.height - (padding + (i / 5) * chartHeight);
+                ctx.fillText(value.toFixed(1), padding - 5, y);
+            }
+
+            // Draw x-axis labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i < productionData.length; i += 4) {
+                const x = padding + (i / (productionData.length - 1)) * chartWidth;
+                ctx.fillText((i + 1).toString(), x, canvas.height - padding + 5);
+            }
+        }
+
+        function drawHorizontalLine(value, minY, maxY, padding, chartWidth, chartHeight, color, label) {
+            const y = canvas.height - (padding + ((value - minY) / (maxY - minY)) * chartHeight);
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(padding, y);
+            ctx.lineTo(canvas.width - padding, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = color;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(label, canvas.width - padding + 5, y);
+        }
+
+        function updateExplanation(chartType, mean, ucl, lcl, averageMovingRange) {
+            let explanation = '';
+            if (chartType === 'individual') {
+                explanation = `
+                    The Individual Control Chart shows individual measurements over time. 
+                    The center green line represents the mean (${mean.toFixed(2)}). 
+                    The upper and lower red dashed lines are the Upper Control Limit (UCL: ${ucl.toFixed(2)}) 
+                    and Lower Control Limit (LCL: ${lcl.toFixed(2)}), calculated as ±2.66 * average moving range from the mean. 
+                    Points outside these limits may indicate special cause variation.
+                `;
+            } else {
+                explanation = `
+                    The Moving Range Chart shows the absolute difference between consecutive measurements. 
+                    The center green line is the average moving range (${averageMovingRange.toFixed(2)}). 
+                    The upper red dashed line is the UCL (${(averageMovingRange * 3.267).toFixed(2)}), calculated as 3.267 * average moving range. 
+                    The LCL is always 0 for moving range charts. 
+                    This chart helps detect changes in process variability.
+                `;
+            }
+            document.getElementById('explanation').innerHTML = explanation;
+        }
+
+        document.getElementById('generateDataBtn').addEventListener('click', generateData);
+        document.getElementById('chartTypeSelect').addEventListener('change', updateChart);
+
+        // Initial data generation and chart display
+        generateData();
+    </script>
+</body>
+</html>
