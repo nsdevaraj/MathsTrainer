@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Addition Quiz with Speech Recognition</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+      .container {
+        text-align: center;
+        background-color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      #question {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+      }
+      #result {
+        font-size: 1.5rem;
+        margin-top: 1rem;
+      }
+      button {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+        margin: 0.5rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Addition Quiz</h1>
+      <div id="question"></div>
+      <button id="startListening">Start Listening</button>
+      <button id="nextQuestion">Next Question</button>
+      <div id="result"></div>
+    </div>
+
+    <script>
+      const questionEl = document.getElementById("question");
+      const resultEl = document.getElementById("result");
+      const startListeningBtn = document.getElementById("startListening");
+      const nextQuestionBtn = document.getElementById("nextQuestion");
+
+      let currentSum = 0;
+      let recognition;
+
+      function generateQuestion() {
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        currentSum = num1 + num2;
+        questionEl.textContent = `What is ${num1} + ${num2}?`;
+        resultEl.textContent = "";
+      }
+
+      function setupSpeechRecognition() {
+        // Check if the browser supports the Web Speech API
+        const SpeechRecognition =
+          window.SpeechRecognition ||
+          window.webkitSpeechRecognition ||
+          window.mozSpeechRecognition ||
+          window.msSpeechRecognition ||
+          window.oSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert(
+            "Your browser does not support speech recognition. Please try with Chrome or Edge."
+          );
+        }
+        // Initialize the speech recognition object
+        const recognition = new SpeechRecognition();
+
+        // Set the recognition language (optional)
+        recognition.lang = "en-US";
+
+        // Continuous results means the speech recognition service continues to listen until stopped
+        recognition.continuous = true;
+
+        // Interim results means the service will provide intermediate results
+        recognition.interimResults = true;
+
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+          const speechResult = event.results[0][0].transcript;
+          console.log("Speech recognized:", speechResult);
+          const userAnswer = parseInt(speechResult);
+
+          if (isNaN(userAnswer)) {
+            resultEl.textContent =
+              "Sorry, I didn't catch a number. Please try again.";
+          } else if (userAnswer === currentSum) {
+            resultEl.textContent = "Correct! Well done!";
+          } else {
+            resultEl.textContent = `Sorry, that's incorrect. The correct answer is ${currentSum}.`;
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          resultEl.textContent =
+            "Error in speech recognition. Please try again.";
+        };
+      }
+
+      startListeningBtn.addEventListener("click", () => {
+        resultEl.textContent = "Listening...";
+        recognition.start();
+      });
+
+      nextQuestionBtn.addEventListener("click", generateQuestion);
+
+      // Initial setup
+      setupSpeechRecognition();
+      generateQuestion();
+    </script>
+  </body>
+</html>
