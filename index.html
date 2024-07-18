@@ -1,69 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Addition Quiz with Speech Recognition</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz with Speech Recognition</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-        background-color: #f0f0f0;
-      }
-      .container {
-        text-align: center;
-        background-color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      #question {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-      }
-      #result {
-        font-size: 1.5rem;
-        margin-top: 1rem;
-      }
-      button {
-        font-size: 1rem;
-        padding: 0.5rem 1rem;
-        margin: 0.5rem;
-        cursor: pointer;
-      }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #question {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        #result {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+        }
+        button {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            margin: 0.5rem;
+            cursor: pointer;
+        }
+        select {
+            font-size: 1rem;
+            padding: 0.5rem;
+            margin: 0.5rem;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="container">
-      <h1>Addition Quiz</h1>
-      <div id="question"></div>
-      <button id="startListening">Start Listening</button>
-      <button id="nextQuestion">Next Question</button>
-      <div id="result"></div>
+        <h1>Math Quiz</h1>
+        <select id="operationSelect">
+            <option value="addition">Addition</option>
+            <option value="subtraction">Subtraction</option>
+            <option value="multiplication">Multiplication</option>
+        </select>
+        <div id="question"></div>
+        <button id="startListening">Start Listening</button>
+        <button id="nextQuestion">Next Question</button>
+        <div id="result"></div>
     </div>
 
     <script>
-      const questionEl = document.getElementById("question");
-      const resultEl = document.getElementById("result");
-      const startListeningBtn = document.getElementById("startListening");
-      const nextQuestionBtn = document.getElementById("nextQuestion");
+        const questionEl = document.getElementById('question');
+        const resultEl = document.getElementById('result');
+        const startListeningBtn = document.getElementById('startListening');
+        const nextQuestionBtn = document.getElementById('nextQuestion');
+        const operationSelect = document.getElementById('operationSelect');
 
-      let currentSum = 0;
-      let recognition;
+        let currentAnswer = 0;
+        let recognition;
 
-      function generateQuestion() {
-        const num1 = Math.floor(Math.random() * 10) + 1;
-        const num2 = Math.floor(Math.random() * 10) + 1;
-        currentSum = num1 + num2;
-        questionEl.textContent = `What is ${num1} + ${num2}?`;
-        resultEl.textContent = "";
-      }
+        function generateQuestion() {
+            const operation = operationSelect.value;
+            const num1 = Math.floor(Math.random() * 10) + 1;
+            const num2 = Math.floor(Math.random() * 10) + 1;
 
-      function setupSpeechRecognition() {
+            let questionText, operationSymbol;
+
+            switch (operation) {
+                case 'addition':
+                    currentAnswer = num1 + num2;
+                    operationSymbol = '+';
+                    break;
+                case 'subtraction':
+                    currentAnswer = num1 - num2;
+                    operationSymbol = '-';
+                    break;
+                case 'multiplication':
+                    currentAnswer = num1 * num2;
+                    operationSymbol = '×';
+                    break;
+            }
+
+            questionText = `What is ${num1} ${operationSymbol} ${num2}?`;
+            questionEl.textContent = questionText;
+            resultEl.textContent = '';
+        }
+
+      
+        function setupSpeechRecognition() {
         // Check if the browser supports the Web Speech API
         const SpeechRecognition =
           window.SpeechRecognition ||
@@ -90,39 +121,38 @@
 
         recognition.maxAlternatives = 1;
 
-        recognition.onresult = (event) => {
-          const speechResult = event.results[0][0].transcript;
-          console.log("Speech recognized:", speechResult);
-          const userAnswer = parseInt(speechResult);
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                console.log('Speech recognized:', speechResult);
+                const userAnswer = parseInt(speechResult);
 
-          if (isNaN(userAnswer)) {
-            resultEl.textContent =
-              "Sorry, I didn't catch a number. Please try again.";
-          } else if (userAnswer === currentSum) {
-            resultEl.textContent = "Correct! Well done!";
-            generateQuestion();
-          } else {
-            resultEl.textContent = `Sorry, that's incorrect. The correct answer is ${currentSum}.`;
-          }
-        };
+                if (isNaN(userAnswer)) {
+                    resultEl.textContent = "Sorry, I didn't catch a number. Please try again.";
+                } else if (userAnswer === currentAnswer) {
+                    resultEl.textContent = "Correct! Well done!";
+                    generateQuestion();
+                } else {
+                    resultEl.textContent = `Sorry, that's incorrect. The correct answer is ${currentAnswer}.`;
+                }
+            };
 
-        recognition.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
-          resultEl.textContent =
-            "Error in speech recognition. Please try again.";
-        }; 
-      }
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                resultEl.textContent = "Error in speech recognition. Please try again.";
+            };
+        }
 
-      startListeningBtn.addEventListener("click", () => {
-        resultEl.textContent = "Listening...";
-        recognition.start();
-      });
+        startListeningBtn.addEventListener('click', () => {
+            resultEl.textContent = "Listening...";
+            recognition.start();
+        });
 
-      nextQuestionBtn.addEventListener("click", generateQuestion);
+        nextQuestionBtn.addEventListener('click', generateQuestion);
+        operationSelect.addEventListener('change', generateQuestion);
 
-      // Initial setup
-      setupSpeechRecognition();
-      generateQuestion();
+        // Initial setup
+        setupSpeechRecognition();
+        generateQuestion();
     </script>
-  </body>
+</body>
 </html>
