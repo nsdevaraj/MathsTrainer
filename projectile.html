@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angle and Projectile Motion Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Angle and Projectile Motion Simulator</h1>
+        <div class="controls">
+            <div class="slider-container">
+                <label for="angleSlider">Angle (degrees):</label>
+                <input type="range" id="angleSlider" min="0" max="90" value="45">
+                <span id="angleValue">45</span>
+            </div>
+            <div class="slider-container">
+                <label for="velocitySlider">Initial Velocity (m/s):</label>
+                <input type="range" id="velocitySlider" min="1" max="50" value="20">
+                <span id="velocityValue">20</span>
+            </div>
+        </div>
+        <div id="canvas-container"></div>
+    </div>
+    <script>
+        let angle = 45;
+        let velocity = 10;
+        let projectile;
+        let ground;
+        let launched = false;
+        const g = 9.81; // Acceleration due to gravity (m/s^2)
+
+        function setup() {
+            const canvas = createCanvas(600, 400);
+            canvas.parent('canvas-container');
+            ground = height - 50;
+            resetProjectile();
+
+            const angleSlider = document.getElementById('angleSlider');
+            const velocitySlider = document.getElementById('velocitySlider');
+            const angleValue = document.getElementById('angleValue');
+            const velocityValue = document.getElementById('velocityValue');
+
+            angleSlider.addEventListener('input', () => {
+                angle = parseFloat(angleSlider.value);
+                angleValue.textContent = angle;
+                resetProjectile();
+            });
+
+            velocitySlider.addEventListener('input', () => {
+                velocity = parseFloat(velocitySlider.value);
+                velocityValue.textContent = velocity;
+                resetProjectile();
+            });
+        }
+
+        function draw() {
+            background(220);
+            
+            // Draw ground
+            fill(0, 150, 0);
+            rect(0, ground, width, height - ground);
+            
+            // Draw projectile
+            fill(255, 0, 0);
+            circle(projectile.x, projectile.y, 20);
+            
+            // Draw launch angle line
+            stroke(0);
+            line(0, ground, cos(radians(angle)) * 50, ground - sin(radians(angle)) * 50);
+            
+            // Update projectile position if launched
+            if (launched) {
+                projectile.x += projectile.vx;
+                projectile.y += projectile.vy;
+                projectile.vy += g / 30; // Simulate gravity (adjusted for frame rate)
+                
+                // Check if projectile hits the ground
+                if (projectile.y >= ground) {
+                    launched = false;
+                    projectile.y = ground;
+                }
+            }
+            
+            // Display information
+            fill(0);
+            noStroke();
+            textSize(16);
+            text(`Angle: ${angle}°`, 10, 20);
+            text(`Initial Velocity: ${velocity} m/s`, 10, 40);
+            text(`Click to launch`, 10, 60);
+        }
+
+        function resetProjectile() {
+            projectile = {
+                x: 0,
+                y: ground,
+                vx: cos(radians(angle)) * velocity,
+                vy: -sin(radians(angle)) * velocity
+            };
+            launched = false;
+        }
+
+        function mousePressed() {
+            if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
+                resetProjectile();
+                launched = true;
+            }
+        }
+    </script>
+</body>
+</html>
